@@ -1,4 +1,4 @@
-module github.com/leoluz/fs-isolation
+module github.com/leoluz/limbo
 
 go 1.17
 
