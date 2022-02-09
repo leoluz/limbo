@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: limbo-cmds
+  namespace: default
+data:
+  cmd1: "tar -zxf input.tar.gz;ls -la;sleep 10"
+  cmd2: "ls /home/limbo"
