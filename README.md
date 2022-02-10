@@ -1,6 +1,6 @@
 # Limbo
 
-This project is a Kubernetes POC to validate how it is possible to isolate a mount point created in a user namespace from other processes running in the host system.
+This project is a Kubernetes POC to validate how it is possible to isolate a mount point created in a user namespace from other processes running in the host system (the Pod).
 
 # Running the POC
 
