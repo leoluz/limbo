@@ -4,6 +4,7 @@ metadata:
   name: limbo-cmds
   namespace: default
 data:
-  cmd1: "ls -la;sleep 10"
-  cmd2: "ls /home/limbo/cmd1"
+  cmd1: "pwd;ls -la;sleep 10"
+  cmd2: "ls /tmp/cmd1"
   cmd3: "id"
+  cmd4: "cat /proc/mounts"

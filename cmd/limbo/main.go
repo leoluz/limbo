@@ -26,18 +26,18 @@ const (
 
 func init() {
 	if os.Args[0] == InitUserNamespace {
-		log.Printf("running init user namespace with %s", os.Args)
 		mountDir := os.Args[1]
 		commands := os.Args[2]
 		var stdinReader = bufio.NewReader(os.Stdin)
 
+		log.Printf("[%s] running init user namespace with %s", mountDir, os.Args)
 		if err := nsSetup(mountDir, stdinReader); err != nil {
-			log.Printf("error setting up tmpfs: %s\n", err)
+			log.Printf("[%s] error setting up user namespace: %s\n", mountDir, err)
 			os.Exit(1)
 		}
 
 		if err := nsRun(mountDir, commands); err != nil {
-			log.Println(err)
+			log.Printf("[%s] error running nested user namespace: %s\n", mountDir, err)
 			os.Exit(1)
 		}
 		os.Exit(0)
@@ -45,26 +45,26 @@ func init() {
 }
 
 func nsTeardown(mountDir string) {
-	log.Printf("unmounting %q...", mountDir)
+	log.Printf("[%s] unmounting %q...", mountDir, mountDir)
 	if err := syscall.Unmount(mountDir, 0); err != nil {
-		log.Printf("error unmount %q: %s", mountDir, err)
+		log.Printf("[%s] error unmount %q: %s", mountDir, mountDir, err)
 		os.Exit(1)
 	}
 }
 
-func nsSetup(path string, stdinReader io.Reader) error {
-	if err := syscall.Mount("none", path, "tmpfs", syscall.MS_NOSUID, "size=32m"); err != nil {
-		return fmt.Errorf("error mounting tmpfs: %s", err)
+func nsSetup(mountDir string, stdinReader io.Reader) error {
+	if err := syscall.Mount("none", mountDir, "tmpfs", syscall.MS_NOSUID, "size=32m"); err != nil {
+		return fmt.Errorf("[%s] error mounting tmpfs: %s", mountDir, err)
 	}
-	f, err := os.OpenFile(filepath.Join(path, "input.tar.gz"), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+	f, err := os.OpenFile(filepath.Join(mountDir, "input.tar.gz"), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
 	if err != nil {
-		return fmt.Errorf("error opening file: %s", err)
+		return fmt.Errorf("[%s] error opening file: %s", mountDir, err)
 	}
 	defer f.Close()
 	w := bufio.NewWriter(f)
 	_, err = io.Copy(w, stdinReader)
 	if err != nil {
-		return fmt.Errorf("error copying stdin to input.tar.gz file: %s", err)
+		return fmt.Errorf("[%s] error copying stdin to input.tar.gz file: %s", mountDir, err)
 	}
 	return nil
 }
@@ -77,7 +77,7 @@ func nsRun(mountDir, commands string) error {
 		cmd := exec.Command(cmdParts[0], cmdParts[1:]...)
 		cmd.Dir = mountDir
 		cmd.SysProcAttr = &syscall.SysProcAttr{
-			Cloneflags: syscall.CLONE_NEWNS | syscall.CLONE_NEWUSER,
+			Cloneflags: syscall.CLONE_NEWUSER,
 			UidMappings: []syscall.SysProcIDMap{
 				{
 					ContainerID: 999,
@@ -95,7 +95,7 @@ func nsRun(mountDir, commands string) error {
 		}
 		output, err := cmd.CombinedOutput()
 		if err != nil {
-			return fmt.Errorf("error running the command: %s: %s", cmdParts, err)
+			return fmt.Errorf("[%s] error running the command: %s: %s: %s", mountDir, cmdParts, err, output)
 		}
 		log.Printf("[%s] command %q output: %s", mountDir, command, output)
 	}
@@ -135,7 +135,7 @@ func Run(clientset *kubernetes.Clientset) {
 	}
 	for key, entry := range cm.Data {
 
-		cmddir := filepath.Join("/home/limbo", key)
+		cmddir := filepath.Join("/tmp", key)
 		os.Mkdir(cmddir, 0755)
 		args := append([]string{InitUserNamespace}, cmddir, entry)
 		cmd := &exec.Cmd{

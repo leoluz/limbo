@@ -21,16 +21,22 @@ spec:
       labels:
         app: limbo
     spec:
+      volumes:
+      - name: tmp
+        emptyDir: {}
       containers:
       - name: limbo
         image: limbo:local
         imagePullPolicy: Never
         securityContext:
           runAsNonRoot: true
-          readOnlyRootFilesystem: false
+          readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false
           capabilities:
             drop:
               - all
+        volumeMounts:
+        - mountPath: /tmp
+          name: tmp
       restartPolicy: Always
       securityContext: {}
