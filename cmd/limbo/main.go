@@ -27,17 +27,28 @@ const (
 func init() {
 	if os.Args[0] == InitUserNamespace {
 		log.Printf("running init user namespace with %s", os.Args)
-		tmpdir := os.Args[1]
+		mountDir := os.Args[1]
 		commands := os.Args[2]
 		var stdinReader = bufio.NewReader(os.Stdin)
 
-		if err := nsSetup(tmpdir, stdinReader); err != nil {
+		if err := nsSetup(mountDir, stdinReader); err != nil {
 			log.Printf("error setting up tmpfs: %s\n", err)
 			os.Exit(1)
 		}
 
-		nsRun(tmpdir, commands)
+		if err := nsRun(mountDir, commands); err != nil {
+			log.Println(err)
+			os.Exit(1)
+		}
 		os.Exit(0)
+	}
+}
+
+func nsTeardown(mountDir string) {
+	log.Printf("unmounting %q...", mountDir)
+	if err := syscall.Unmount(mountDir, 0); err != nil {
+		log.Printf("error unmount %q: %s", mountDir, err)
+		os.Exit(1)
 	}
 }
 
@@ -58,18 +69,37 @@ func nsSetup(path string, stdinReader io.Reader) error {
 	return nil
 }
 
-func nsRun(tmpdir, commands string) {
+func nsRun(mountDir, commands string) error {
+	defer nsTeardown(mountDir)
 	cmds := strings.Split(commands, ";")
 	for _, command := range cmds {
 		cmdParts := strings.Split(command, " ")
 		cmd := exec.Command(cmdParts[0], cmdParts[1:]...)
-		cmd.Dir = tmpdir
+		cmd.Dir = mountDir
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			Cloneflags: syscall.CLONE_NEWNS | syscall.CLONE_NEWUSER,
+			UidMappings: []syscall.SysProcIDMap{
+				{
+					ContainerID: 999,
+					HostID:      os.Getuid(),
+					Size:        1,
+				},
+			},
+			GidMappings: []syscall.SysProcIDMap{
+				{
+					ContainerID: 999,
+					HostID:      os.Getgid(),
+					Size:        1,
+				},
+			},
+		}
 		output, err := cmd.CombinedOutput()
 		if err != nil {
-			log.Printf("error running the command: %s: %s", cmdParts, err)
+			return fmt.Errorf("error running the command: %s: %s", cmdParts, err)
 		}
-		log.Printf("[%s] command %q output: %s", tmpdir, command, output)
+		log.Printf("[%s] command %q output: %s", mountDir, command, output)
 	}
+	return nil
 }
 
 func main() {
