@@ -22,6 +22,7 @@ import (
 
 const (
 	InitUserNamespace = "initUserNamespace"
+	LimboNamespace    = "LIMBO_NAMESPACE"
 )
 
 func init() {
@@ -122,7 +123,11 @@ func main() {
 }
 
 func Run(clientset *kubernetes.Clientset) {
-	cm, err := clientset.CoreV1().ConfigMaps("default").Get(context.Background(), "limbo-cmds", metav1.GetOptions{})
+	ns := os.Getenv(LimboNamespace)
+	if ns == "" {
+		ns = "default"
+	}
+	cm, err := clientset.CoreV1().ConfigMaps(ns).Get(context.Background(), "limbo-cmds", metav1.GetOptions{})
 	if err != nil {
 		log.Printf("error getting configmap: %s", err)
 		return

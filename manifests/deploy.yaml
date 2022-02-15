@@ -3,7 +3,6 @@ kind: Deployment
 metadata:
   annotations:
   name: limbo
-  namespace: default
 spec:
   progressDeadlineSeconds: 600
   replicas: 1
@@ -26,8 +25,12 @@ spec:
         emptyDir: {}
       containers:
       - name: limbo
-        image: limbo:local
-        imagePullPolicy: Never
+        image: leoluz/limbo:latest
+        # image: docker.intuit.com/dev-deploy/rollouts-converter/service/ns-poc:latest
+        imagePullPolicy: Always
+        env:
+        - name: LIMBO_NAMESPACE
+          value: default
         securityContext:
           runAsNonRoot: true
           readOnlyRootFilesystem: true
